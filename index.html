@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FPS Booster Menu</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    background: #0a0a0f;
+    background-image:
+      radial-gradient(ellipse at 20% 20%, rgba(255,0,0,0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, rgba(255,0,0,0.05) 0%, transparent 50%),
+      linear-gradient(135deg, #0a0a0f 0%, #0f0a0a 50%, #0a0a0f 100%);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,0,0,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,0,0,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ─── Launcher button ─── */
+  #launcher {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    background: rgba(15,10,10,0.85);
+    border: 1px solid rgba(255,0,0,0.5);
+    border-radius: 16px;
+    padding: 40px 60px;
+    text-align: center;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 0 40px rgba(255,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05);
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  #launcher:hover {
+    box-shadow: 0 0 60px rgba(255,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+    border-color: rgba(255,0,0,0.8);
+    transform: translate(-50%, -50%) scale(1.02);
+  }
+  #launcher .launch-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    display: block;
+    filter: drop-shadow(0 0 12px rgba(255,0,0,0.8));
+    animation: pulse-icon 2s ease-in-out infinite;
+  }
+  #launcher h2 {
+    color: #ff0000;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-shadow: 0 0 20px rgba(255,0,0,0.6);
+    margin-bottom: 8px;
+  }
+  #launcher p {
+    color: rgba(255,255,255,0.4);
+    font-size: 13px;
+    letter-spacing: 1px;
+  }
+  @keyframes pulse-icon {
+    0%, 100% { filter: drop-shadow(0 0 8px rgba(255,0,0,0.6)); }
+    50% { filter: drop-shadow(0 0 20px rgba(255,0,0,1)); }
+  }
+
+  /* ─── Main window ─── */
+  #app {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.85);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 100;
+    width: min(820px, 96vw);
+    height: min(600px, 92vh);
+    background: rgba(10,8,8,0.82);
+    border: 1px solid rgba(255,0,0,0.35);
+    border-radius: 20px;
+    backdrop-filter: blur(30px) saturate(180%);
+    box-shadow:
+      0 0 0 1px rgba(255,0,0,0.1),
+      0 0 60px rgba(255,0,0,0.15),
+      0 30px 80px rgba(0,0,0,0.8),
+      inset 0 1px 0 rgba(255,255,255,0.06);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: opacity 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+                transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    min-width: 320px;
+    min-height: 400px;
+  }
+  #app.open {
+    opacity: 1;
+    pointer-events: all;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  #app.minimized {
+    height: 48px !important;
+    min-height: 48px;
+    overflow: hidden;
+  }
+
+  /* ─── Resize handle ─── */
+  .resize-handle {
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 18px; height: 18px;
+    cursor: se-resize;
+    z-index: 10;
+  }
+  .resize-handle::after {
+    content: '';
+    position: absolute;
+    bottom: 4px; right: 4px;
+    width: 10px; height: 10px;
+    border-right: 2px solid rgba(255,0,0,0.5);
+    border-bottom: 2px solid rgba(255,0,0,0.5);
+    border-radius: 0 0 3px 0;
+  }
+
+  /* ─── Title bar ─── */
+  #titlebar {
+    height: 48px;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    background: rgba(255,0,0,0.05);
+    border-bottom: 1px solid rgba(255,0,0,0.2);
+    cursor: grab;
+    flex-shrink: 0;
+    gap: 12px;
+  }
+  #titlebar:active { cursor: grabbing; }
+  .title-icon {
+    font-size: 18px;
+    filter: drop-shadow(0 0 6px rgba(255,0,0,0.8));
+  }
+  .title-text {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #ff3333;
+    text-shadow: 0 0 16px rgba(255,0,0,0.6);
+  }
+  .title-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    background: rgba(255,0,0,0.15);
+    border: 1px solid rgba(255,0,0,0.3);
+    border-radius: 20px;
+    color: rgba(255,100,100,0.8);
+    letter-spacing: 1px;
+  }
+  .win-btn {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .win-btn.minimize {
+    background: rgba(255,200,0,0.15);
+    color: rgba(255,200,0,0.7);
+    border: 1px solid rgba(255,200,0,0.2);
+  }
+  .win-btn.minimize:hover {
+    background: rgba(255,200,0,0.3);
+    color: #ffc800;
+    box-shadow: 0 0 10px rgba(255,200,0,0.3);
+  }
+  .win-btn.close {
+    background: rgba(255,0,0,0.15);
+    color: rgba(255,80,80,0.7);
+    border: 1px solid rgba(255,0,0,0.2);
+  }
+  .win-btn.close:hover {
+    background: rgba(255,0,0,0.35);
+    color: #ff4444;
+    box-shadow: 0 0 10px rgba(255,0,0,0.4);
+  }
+
+  /* ─── Body layout ─── */
+  .app-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ─── Sidebar ─── */
+  #sidebar {
+    width: 180px;
+    min-width: 180px;
+    background: rgba(5,4,4,0.7);
+    border-right: 1px solid rgba(255,0,0,0.15);
+    display: flex;
+    flex-direction: column;
+    padding: 16px 0;
+    gap: 4px;
+    flex-shrink: 0;
+    overflow-y: auto;
+  }
+  .sidebar-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: rgba(255,255,255,0.2);
+    padding: 0 16px 8px;
+    text-transform: uppercase;
+  }
+  .tab-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    margin: 0 8px;
+    border-radius: 10px;
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.45);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    text-align: left;
+    overflow: hidden;
+  }
+  .tab-btn .tab-icon { font-size: 16px; flex-shrink: 0; }
+  .tab-btn::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 50%;
+    transform: translateY(-50%) scaleY(0);
+    width: 3px; height: 60%;
+    background: #ff0000;
+    border-radius: 0 3px 3px 0;
+    transition: transform 0.25s ease;
+    box-shadow: 0 0 8px rgba(255,0,0,0.8);
+  }
+  .tab-btn:hover {
+    background: rgba(255,0,0,0.08);
+    color: rgba(255,180,180,0.8);
+  }
+  .tab-btn.active {
+    background: rgba(255,0,0,0.12);
+    color: #ff4444;
+    text-shadow: 0 0 10px rgba(255,0,0,0.4);
+    border: 1px solid rgba(255,0,0,0.2);
+  }
+  .tab-btn.active::before { transform: translateY(-50%) scaleY(1); }
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 16px;
+    border-top: 1px solid rgba(255,0,0,0.1);
+  }
+  .version-tag {
+    font-size: 10px;
+    color: rgba(255,255,255,0.2);
+    letter-spacing: 1px;
+  }
+
+  /* ─── Content ─── */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,0,0,0.3) transparent;
+  }
+  .content::-webkit-scrollbar { width: 4px; }
+  .content::-webkit-scrollbar-track { background: transparent; }
+  .content::-webkit-scrollbar-thumb { background: rgba(255,0,0,0.3); border-radius: 2px; }
+
+  .tab-panel {
+    display: none;
+    animation: fadeSlide 0.3s ease forwards;
+  }
+  .tab-panel.active { display: block; }
+  @keyframes fadeSlide {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── Section headers ─── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .section-header h2 {
+    font-size: 18px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: 1px;
+  }
+  .section-header .dot {
+    width: 8px; height: 8px;
+    background: #ff0000;
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(255,0,0,0.8);
+    animation: blink 1.5s ease-in-out infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* ─── FPS stats bar ─── */
+  .fps-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,0,0,0.12);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+    transition: all 0.3s;
+  }
+  .stat-card:hover {
+    background: rgba(255,0,0,0.06);
+    border-color: rgba(255,0,0,0.25);
+  }
+  .stat-label {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: rgba(255,255,255,0.35);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .stat-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+    transition: color 0.3s;
+  }
+  .stat-value.good { color: #00ff88; text-shadow: 0 0 10px rgba(0,255,136,0.4); }
+  .stat-value.ok   { color: #ffcc00; text-shadow: 0 0 10px rgba(255,204,0,0.4); }
+  .stat-value.bad  { color: #ff3333; text-shadow: 0 0 10px rgba(255,51,51,0.4); }
+  .stat-unit {
+    font-size: 10px;
+    color: rgba(255,255,255,0.3);
+    margin-top: 2px;
+  }
+
+  /* ─── Settings list ─── */
+  .settings-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+
+  .setting-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 13px 16px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    transition: all 0.25s ease;
+  }
+  .setting-row:hover {
+    background: rgba(255,0,0,0.05);
+    border-color: rgba(255,0,0,0.2);
+    transform: translateX(2px);
+  }
+  .setting-row.enabled {
+    border-color: rgba(255,0,0,0.25);
+    background: rgba(255,0,0,0.06);
+  }
+  .setting-icon {
+    font-size: 18px;
+    width: 28px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .setting-info { flex: 1; min-width: 0; }
+  .setting-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.85);
+    margin-bottom: 2px;
+  }
+  .setting-desc {
+    font-size: 11px;
+    color: rgba(255,255,255,0.3);
+    line-height: 1.4;
+  }
+  .setting-status {
+    font-size: 9px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: all 0.25s;
+    flex-shrink: 0;
+  }
+  .setting-status.on  { background: rgba(0,255,100,0.12); color: #00ff88; border: 1px solid rgba(0,255,100,0.25); }
+  .setting-status.off { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.3); border: 1px solid rgba(255,255,255,0.1); }
+
+  /* ─── Toggle switch ─── */
+  .toggle {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+  .toggle input { display: none; }
+  .toggle-track {
+    width: 100%; height: 100%;
+    background: rgba(255,255,255,0.08);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+  .toggle-track::after {
+    content: '';
+    position: absolute;
+    width: 18px; height: 18px;
+    background: rgba(255,255,255,0.7);
+    border-radius: 50%;
+    top: 2px; left: 2px;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
+  .toggle input:checked + .toggle-track {
+    background: rgba(255,0,0,0.25);
+    border-color: rgba(255,0,0,0.5);
+    box-shadow: 0 0 12px rgba(255,0,0,0.3);
+  }
+  .toggle input:checked + .toggle-track::after {
+    left: calc(100% - 20px);
+    background: #ff3333;
+    box-shadow: 0 0 8px rgba(255,0,0,0.6);
+  }
+
+  /* ─── Action buttons ─── */
+  .action-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .action-btn {
+    padding: 10px 8px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,0,0,0.25);
+    background: rgba(255,0,0,0.08);
+    color: rgba(255,180,180,0.85);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    text-align: center;
+  }
+  .action-btn:hover {
+    background: rgba(255,0,0,0.2);
+    border-color: rgba(255,0,0,0.5);
+    color: #ff4444;
+    box-shadow: 0 0 16px rgba(255,0,0,0.25);
+    transform: translateY(-1px);
+  }
+  .action-btn:active {
+    transform: translateY(1px) scale(0.97);
+    box-shadow: 0 0 6px rgba(255,0,0,0.2);
+  }
+  .action-btn.primary {
+    background: rgba(255,0,0,0.18);
+    border-color: rgba(255,0,0,0.4);
+    color: #ff6666;
+  }
+  .action-btn.primary:hover {
+    background: rgba(255,0,0,0.32);
+    box-shadow: 0 0 24px rgba(255,0,0,0.35);
+  }
+
+  /* ─── Info tab ─── */
+  .info-hero {
+    text-align: center;
+    padding: 24px 0 28px;
+    animation: fadeIn 0.5s ease;
+  }
+  .info-game-icon {
+    font-size: 64px;
+    display: block;
+    margin: 0 auto 16px;
+    filter: drop-shadow(0 0 24px rgba(255,0,0,0.9));
+    animation: float 3s ease-in-out infinite, glow-icon 2s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-8px); }
+  }
+  @keyframes glow-icon {
+    0%, 100% { filter: drop-shadow(0 0 16px rgba(255,0,0,0.7)); }
+    50%       { filter: drop-shadow(0 0 32px rgba(255,0,0,1)); }
+  }
+  .info-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: #ff2222;
+    text-shadow: 0 0 30px rgba(255,0,0,0.5);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .info-subtitle {
+    font-size: 12px;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 2px;
+    margin-bottom: 28px;
+  }
+  .info-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .info-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,0,0,0.12);
+    border-radius: 14px;
+    padding: 18px;
+    transition: all 0.3s;
+    animation: fadeIn 0.6s ease;
+  }
+  .info-card:hover {
+    background: rgba(255,0,0,0.06);
+    border-color: rgba(255,0,0,0.28);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(255,0,0,0.1);
+  }
+  .info-card-icon { font-size: 24px; margin-bottom: 10px; display: block; }
+  .info-card-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: rgba(255,0,0,0.6);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .info-card-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.85);
+  }
+  .credit-card {
+    background: linear-gradient(135deg, rgba(255,0,0,0.1), rgba(255,0,0,0.03));
+    border: 1px solid rgba(255,0,0,0.25);
+    border-radius: 14px;
+    padding: 20px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .credit-card::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: conic-gradient(transparent, rgba(255,0,0,0.06), transparent);
+    animation: spin 6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .credit-card-inner { position: relative; z-index: 1; }
+  .credit-label {
+    font-size: 11px;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .credit-name {
+    font-size: 22px;
+    font-weight: 800;
+    color: #ff3333;
+    text-shadow: 0 0 20px rgba(255,0,0,0.5);
+    letter-spacing: 2px;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── Glow pulse on window ─── */
+  @keyframes glow-pulse {
+    0%, 100% { box-shadow: 0 0 0 1px rgba(255,0,0,0.1), 0 0 40px rgba(255,0,0,0.1), 0 30px 80px rgba(0,0,0,0.8); }
+    50%       { box-shadow: 0 0 0 1px rgba(255,0,0,0.2), 0 0 70px rgba(255,0,0,0.2), 0 30px 80px rgba(0,0,0,0.8); }
+  }
+  #app.open { animation: glow-pulse 4s ease-in-out infinite; }
+  #app.minimized { animation: none; }
+
+  /* ─── Mobile / tablet ─── */
+  @media (max-width: 640px) {
+    #app { width: 100vw; height: 100vh; border-radius: 0; top: 0; left: 0; transform: scale(0.9); }
+    #app.open { transform: scale(1); }
+    #sidebar { width: 52px; min-width: 52px; padding: 12px 0; }
+    .tab-btn { padding: 12px; justify-content: center; margin: 0 4px; }
+    .tab-btn span:not(.tab-icon) { display: none; }
+    .sidebar-label, .sidebar-footer { display: none; }
+    .fps-stats { grid-template-columns: repeat(2, 1fr); }
+    .action-row { grid-template-columns: repeat(2, 1fr); }
+    .info-cards { grid-template-columns: 1fr; }
+    .content { padding: 14px; }
+  }
+  @media (max-width: 420px) {
+    .fps-stats { grid-template-columns: repeat(2, 1fr); }
+    .stat-value { font-size: 18px; }
+  }
+  @media (min-width: 641px) and (max-width: 900px) {
+    #app { width: 96vw; }
+    #sidebar { width: 150px; min-width: 150px; }
+    .fps-stats { grid-template-columns: repeat(2, 1fr); }
+    .action-row { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- Launcher -->
+<div id="launcher" onclick="openApp()">
+  <span class="launch-icon">⚡</span>
+  <h2>FPS Booster</h2>
+  <p>CLICK TO LAUNCH</p>
+</div>
+
+<!-- Main Window -->
+<div id="app">
+  <!-- Title bar -->
+  <div id="titlebar">
+    <span class="title-icon">⚡</span>
+    <span class="title-text">FPS Booster Menu</span>
+    <span class="title-badge">v1.0</span>
+    <button class="win-btn minimize" onclick="toggleMinimize()" title="Minimize">─</button>
+    <button class="win-btn close" onclick="closeApp()" title="Close">✕</button>
+  </div>
+
+  <!-- Body -->
+  <div class="app-body">
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <div class="sidebar-label">Navigation</div>
+
+      <button class="tab-btn active" data-tab="fps" onclick="switchTab('fps', this)">
+        <span class="tab-icon">🚀</span>
+        <span>FPS Boost</span>
+      </button>
+
+      <button class="tab-btn" data-tab="info" onclick="switchTab('info', this)">
+        <span class="tab-icon">ℹ️</span>
+        <span>Info</span>
+      </button>
+
+      <div class="sidebar-footer">
+        <div class="version-tag">VER 1.0</div>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+
+      <!-- FPS Tab -->
+      <div id="tab-fps" class="tab-panel active">
+
+        <!-- Stats -->
+        <div class="fps-stats">
+          <div class="stat-card">
+            <div class="stat-label">Current FPS</div>
+            <div class="stat-value good" id="stat-fps">144</div>
+            <div class="stat-unit">FPS</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Average FPS</div>
+            <div class="stat-value good" id="stat-avg">138</div>
+            <div class="stat-unit">AVG</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Performance</div>
+            <div class="stat-value good" id="stat-perf">HIGH</div>
+            <div class="stat-unit">STATUS</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Optimized</div>
+            <div class="stat-value" id="stat-opt">0%</div>
+            <div class="stat-unit">BOOST</div>
+          </div>
+        </div>
+
+        <!-- Section header -->
+        <div class="section-header">
+          <div class="dot"></div>
+          <h2>Optimization Settings</h2>
+        </div>
+
+        <!-- Settings -->
+        <div class="settings-list">
+
+          <div class="setting-row" id="row-0">
+            <span class="setting-icon">🎮</span>
+            <div class="setting-info">
+              <div class="setting-name">Low Graphics Mode</div>
+              <div class="setting-desc">Reduce visual quality to increase performance.</div>
+            </div>
+            <span class="setting-status off" id="status-0">OFF</span>
+            <label class="toggle">
+              <input type="checkbox" id="toggle-0" onchange="onToggle(0, this)" />
+              <div class="toggle-track"></div>
+            </label>
+          </div>
+
+          <div class="setting-row" id="row-1">
+            <span class="setting-icon">✨</span>
+            <div class="setting-info">
+              <div class="setting-name">No Particles</div>
+              <div class="setting-desc">Disable all particle effects — smoke, sparks, dust, fire.</div>
+            </div>
+            <span class="setting-status off" id="status-1">OFF</span>
+            <label class="toggle">
+              <input type="checkbox" id="toggle-1" onchange="onToggle(1, this)" />
+              <div class="toggle-track"></div>
+            </label>
+          </div>
+
+          <div class="setting-row" id="row-2">
+            <span class="setting-icon">🔮</span>
+            <div class="setting-info">
+              <div class="setting-name">Disable Enchantment Glint</div>
+              <div class="setting-desc">Remove shiny enchantment effects from items.</div>
+            </div>
+            <span class="setting-status off" id="status-2">OFF</span>
+            <label class="toggle">
+              <input type="checkbox" id="toggle-2" onchange="onToggle(2, this)" />
+              <div class="toggle-track"></div>
+            </label>
+          </div>
+
+          <div class="setting-row" id="row-3">
+            <span class="setting-icon">🌑</span>
+            <div class="setting-info">
+              <div class="setting-name">Disable Shadows</div>
+              <div class="setting-desc">Turn off dynamic shadows for a major FPS gain.</div>
+            </div>
+            <span class="setting-status off" id="status-3">OFF</span>
+            <label class="toggle">
+              <input type="checkbox" id="toggle-3" onchange="onToggle(3, this)" />
+              <div class="toggle-track"></div>
+            </label>
+          </div>
+
+          <div class="setting-row" id="row-4">
+            <span class="setting-icon">🌧️</span>
+            <div class="setting-info">
+              <div class="setting-name">Disable Weather Effects</div>
+              <div class="setting-desc">Remove rain, snow, and storm visual effects.</div>
+            </div>
+            <span class="setting-status off" id="status-4">OFF</span>
+            <label class="toggle">
+              <input type="checkbox" id="toggle-4" onchange="onToggle(4, this)" />
+              <div class="toggle-track"></div>
+            </label>
+          </div>
+
+          <div class="setting-row" id="row-5">
+            <span class="setting-icon">🎞️</span>
+            <div class="setting-info">
+              <div class="setting-name">Disable Animated Textures</div>
+              <div class="setting-desc">Stop animated textures and visual effects.</div>
+            </div>
+            <span class="setting-status off" id="status-5">OFF</span>
+            <label class="toggle">
+              <input type="checkbox" id="toggle-5" onchange="onToggle(5, this)" />
+              <div class="toggle-track"></div>
+            </label>
+          </div>
+
+          <div class="setting-row" id="row-6">
+            <span class="setting-icon">📐</span>
+            <div class="setting-info">
+              <div class="setting-name">Reduce Render Distance</div>
+              <div class="setting-desc">Render fewer objects to significantly improve FPS.</div>
+            </div>
+            <span class="setting-status off" id="status-6">OFF</span>
+            <label class="toggle">
+              <input type="checkbox" id="toggle-6" onchange="onToggle(6, this)" />
+              <div class="toggle-track"></div>
+            </label>
+          </div>
+
+          <div class="setting-row" id="row-7">
+            <span class="setting-icon">💡</span>
+            <div class="setting-info">
+              <div class="setting-name">Disable Bloom Effects</div>
+              <div class="setting-desc">Remove glow and post-processing blur effects.</div>
+            </div>
+            <span class="setting-status off" id="status-7">OFF</span>
+            <label class="toggle">
+              <input type="checkbox" id="toggle-7" onchange="onToggle(7, this)" />
+              <div class="toggle-track"></div>
+            </label>
+          </div>
+
+          <div class="setting-row" id="row-8">
+            <span class="setting-icon">🌿</span>
+            <div class="setting-info">
+              <div class="setting-name">Disable Ambient Effects</div>
+              <div class="setting-desc">Disable unnecessary environmental visuals.</div>
+            </div>
+            <span class="setting-status off" id="status-8">OFF</span>
+            <label class="toggle">
+              <input type="checkbox" id="toggle-8" onchange="onToggle(8, this)" />
+              <div class="toggle-track"></div>
+            </label>
+          </div>
+
+          <div class="setting-row" id="row-9">
+            <span class="setting-icon">🔦</span>
+            <div class="setting-info">
+              <div class="setting-name">Disable Lighting Effects</div>
+              <div class="setting-desc">Reduce advanced lighting calculations.</div>
+            </div>
+            <span class="setting-status off" id="status-9">OFF</span>
+            <label class="toggle">
+              <input type="checkbox" id="toggle-9" onchange="onToggle(9, this)" />
+              <div class="toggle-track"></div>
+            </label>
+          </div>
+
+          <div class="setting-row" id="row-10">
+            <span class="setting-icon">⚙️</span>
+            <div class="setting-info">
+              <div class="setting-name">Performance Mode</div>
+              <div class="setting-desc">Automatically apply aggressive FPS optimizations.</div>
+            </div>
+            <span class="setting-status off" id="status-10">OFF</span>
+            <label class="toggle">
+              <input type="checkbox" id="toggle-10" onchange="onToggle(10, this)" />
+              <div class="toggle-track"></div>
+            </label>
+          </div>
+
+          <div class="setting-row" id="row-11">
+            <span class="setting-icon">🔥</span>
+            <div class="setting-info">
+              <div class="setting-name">Ultra FPS Mode</div>
+              <div class="setting-desc">Maximum performance — disables all unnecessary visual effects.</div>
+            </div>
+            <span class="setting-status off" id="status-11">OFF</span>
+            <label class="toggle">
+              <input type="checkbox" id="toggle-11" onchange="onToggle(11, this)" />
+              <div class="toggle-track"></div>
+            </label>
+          </div>
+
+        </div>
+
+        <!-- Action buttons -->
+        <div class="action-row">
+          <button class="action-btn" onclick="enableAll()">Enable All</button>
+          <button class="action-btn" onclick="disableAll()">Disable All</button>
+          <button class="action-btn" onclick="resetAll()">Reset</button>
+          <button class="action-btn primary" onclick="applyOptimizations()">Apply ⚡</button>
+        </div>
+
+      </div><!-- /tab-fps -->
+
+      <!-- Info Tab -->
+      <div id="tab-info" class="tab-panel">
+        <div class="info-hero">
+          <span class="info-game-icon">⚡</span>
+          <div class="info-title">FPS Booster</div>
+          <div class="info-subtitle">PERFORMANCE OPTIMIZATION UTILITY</div>
+        </div>
+
+        <div class="info-cards">
+          <div class="info-card">
+            <span class="info-card-icon">🏷️</span>
+            <div class="info-card-label">Version</div>
+            <div class="info-card-value">1.0</div>
+          </div>
+          <div class="info-card">
+            <span class="info-card-icon">🎯</span>
+            <div class="info-card-label">Type</div>
+            <div class="info-card-value">FPS Optimization Utility</div>
+          </div>
+          <div class="info-card">
+            <span class="info-card-icon">🎨</span>
+            <div class="info-card-label">Theme</div>
+            <div class="info-card-value">Red Gaming UI</div>
+          </div>
+          <div class="info-card">
+            <span class="info-card-icon">💎</span>
+            <div class="info-card-label">Design</div>
+            <div class="info-card-value">Glassmorphism Dashboard</div>
+          </div>
+        </div>
+
+        <div class="credit-card">
+          <div class="credit-card-inner">
+            <div class="credit-label">Made By</div>
+            <div class="credit-name">Not1egend</div>
+          </div>
+        </div>
+      </div><!-- /tab-info -->
+
+    </div><!-- /content -->
+  </div><!-- /app-body -->
+
+  <div class="resize-handle" id="resizeHandle"></div>
+</div><!-- /app -->
+
+<script>
+  const app = document.getElementById('app');
+  const launcher = document.getElementById('launcher');
+  const TOTAL = 12;
+  let states = new Array(TOTAL).fill(false);
+
+  // ─── Open / Close / Minimize ───────────────────────────────
+  function openApp() {
+    launcher.style.display = 'none';
+    app.classList.add('open');
+  }
+  function closeApp() {
+    app.classList.remove('open');
+    setTimeout(() => { launcher.style.display = ''; }, 380);
+  }
+  function toggleMinimize() {
+    app.classList.toggle('minimized');
+  }
+
+  // ─── Tab switching ──────────────────────────────────────────
+  function switchTab(id, btn) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + id).classList.add('active');
+  }
+
+  // ─── Toggle logic ───────────────────────────────────────────
+  function onToggle(idx, el) {
+    states[idx] = el.checked;
+    updateRow(idx);
+    updateStats();
+  }
+
+  function updateRow(idx) {
+    const on = states[idx];
+    const row = document.getElementById('row-' + idx);
+    const status = document.getElementById('status-' + idx);
+    row.classList.toggle('enabled', on);
+    status.textContent = on ? 'ON' : 'OFF';
+    status.className = 'setting-status ' + (on ? 'on' : 'off');
+  }
+
+  // ─── Stats simulation ────────────────────────────────────────
+  let baseFps = 144;
+  let displayFps = 144;
+  let displayAvg = 138;
+
+  function enabledCount() { return states.filter(Boolean).length; }
+
+  function updateStats() {
+    const count = enabledCount();
+    const boost = Math.round((count / TOTAL) * 100);
+    const targetFps = Math.min(360, Math.round(baseFps + count * 22));
+
+    // Animate FPS counter
+    animateNumber('stat-fps', displayFps, targetFps, 600, v => {
+      displayFps = v;
+      colorStat('stat-fps', v);
+    });
+    animateNumber('stat-avg', displayAvg, Math.round(targetFps * 0.95), 800, v => {
+      displayAvg = v;
+      colorStat('stat-avg', v);
+    });
+    animateNumber('stat-opt', parseInt(document.getElementById('stat-opt').textContent), boost, 500, v => {
+      document.getElementById('stat-opt').textContent = v + '%';
+    });
+
+    const perfEl = document.getElementById('stat-perf');
+    if (targetFps >= 200) { perfEl.textContent = 'ULTRA'; perfEl.className = 'stat-value good'; }
+    else if (targetFps >= 120) { perfEl.textContent = 'HIGH'; perfEl.className = 'stat-value good'; }
+    else if (targetFps >= 60)  { perfEl.textContent = 'MED';  perfEl.className = 'stat-value ok'; }
+    else                       { perfEl.textContent = 'LOW';  perfEl.className = 'stat-value bad'; }
+  }
+
+  function colorStat(id, v) {
+    const el = document.getElementById(id);
+    el.classList.remove('good', 'ok', 'bad');
+    if (v >= 120) el.classList.add('good');
+    else if (v >= 60) el.classList.add('ok');
+    else el.classList.add('bad');
+  }
+
+  function animateNumber(id, from, to, dur, cb) {
+    const el = document.getElementById(id);
+    const start = performance.now();
+    const isPercent = id === 'stat-opt';
+    function step(now) {
+      const t = Math.min((now - start) / dur, 1);
+      const ease = 1 - Math.pow(1 - t, 3);
+      const v = Math.round(from + (to - from) * ease);
+      el.textContent = isPercent ? v + '%' : v;
+      if (cb) cb(v);
+      if (t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  // Ambient FPS shimmer
+  setInterval(() => {
+    const count = enabledCount();
+    const target = Math.min(360, baseFps + count * 22);
+    const jitter = Math.round((Math.random() - 0.5) * 6);
+    const el = document.getElementById('stat-fps');
+    const v = target + jitter;
+    el.textContent = v;
+    colorStat('stat-fps', v);
+  }, 1200);
+
+  // ─── Bulk actions ────────────────────────────────────────────
+  function enableAll() {
+    for (let i = 0; i < TOTAL; i++) {
+      states[i] = true;
+      document.getElementById('toggle-' + i).checked = true;
+      updateRow(i);
+    }
+    updateStats();
+  }
+  function disableAll() {
+    for (let i = 0; i < TOTAL; i++) {
+      states[i] = false;
+      document.getElementById('toggle-' + i).checked = false;
+      updateRow(i);
+    }
+    updateStats();
+  }
+  function resetAll() { disableAll(); }
+  function applyOptimizations() {
+    const btn = event.target;
+    const orig = btn.textContent;
+    btn.textContent = '✓ Applied!';
+    btn.style.color = '#00ff88';
+    btn.style.borderColor = 'rgba(0,255,136,0.4)';
+    btn.style.background = 'rgba(0,255,136,0.12)';
+    setTimeout(() => {
+      btn.textContent = orig;
+      btn.style.color = '';
+      btn.style.borderColor = '';
+      btn.style.background = '';
+    }, 1600);
+    updateStats();
+  }
+
+  // ─── Dragging ────────────────────────────────────────────────
+  (function() {
+    const titlebar = document.getElementById('titlebar');
+    let dragging = false, ox = 0, oy = 0;
+
+    // Keep track of pixel offset from center
+    let dx = 0, dy = 0;
+
+    function applyPos() {
+      app.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(1)`;
+    }
+
+    titlebar.addEventListener('mousedown', e => {
+      if (e.target.classList.contains('win-btn')) return;
+      dragging = true;
+      ox = e.clientX - dx;
+      oy = e.clientY - dy;
+      app.style.transition = 'none';
+    });
+    document.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      dx = e.clientX - ox;
+      dy = e.clientY - oy;
+      applyPos();
+    });
+    document.addEventListener('mouseup', () => {
+      if (dragging) { dragging = false; app.style.transition = ''; }
+    });
+
+    // Touch drag
+    titlebar.addEventListener('touchstart', e => {
+      if (e.target.classList.contains('win-btn')) return;
+      const t = e.touches[0];
+      dragging = true;
+      ox = t.clientX - dx;
+      oy = t.clientY - dy;
+      app.style.transition = 'none';
+    }, { passive: true });
+    document.addEventListener('touchmove', e => {
+      if (!dragging) return;
+      const t = e.touches[0];
+      dx = t.clientX - ox;
+      dy = t.clientY - oy;
+      applyPos();
+    }, { passive: true });
+    document.addEventListener('touchend', () => {
+      if (dragging) { dragging = false; app.style.transition = ''; }
+    });
+  })();
+
+  // ─── Resize ──────────────────────────────────────────────────
+  (function() {
+    const handle = document.getElementById('resizeHandle');
+    let resizing = false, startX, startY, startW, startH;
+
+    handle.addEventListener('mousedown', e => {
+      resizing = true;
+      startX = e.clientX; startY = e.clientY;
+      startW = app.offsetWidth; startH = app.offsetHeight;
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', e => {
+      if (!resizing) return;
+      const nw = Math.max(320, startW + (e.clientX - startX));
+      const nh = Math.max(400, startH + (e.clientY - startY));
+      app.style.width = nw + 'px';
+      app.style.height = nh + 'px';
+    });
+    document.addEventListener('mouseup', () => { resizing = false; });
+  })();
+</script>
+</body>
+</html>
